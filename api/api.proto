@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package api;
+
+message Tracks {
+    message TrackInfo {
+        string name = 1;
+        string artist = 2;
+        string geniusURI = 3;
+        string lyrics = 4;
+    }
+    repeated TrackInfo trackInfo = 1;
+}
+
+service Lyrics {
+    rpc GetLyrics(Tracks) returns (Tracks) {}
+}
