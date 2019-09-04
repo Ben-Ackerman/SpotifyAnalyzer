@@ -5,8 +5,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/Ben-Ackerman/api"
-	"github.com/Ben-Ackerman/genius"
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/genius"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
