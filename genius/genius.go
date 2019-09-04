@@ -110,6 +110,9 @@ func (c *GeniusClient) GetSongURL(artist string, song string) (string, error) {
 
 func (c *GeniusClient) GetSongLyrics(songURL string) (string, error) {
 	// Request the HTML page.
+	if len(songURL) < 0 {
+		return "", fmt.Errorf("No url provided to GeniusClient.GetSongLyrics")
+	}
 	res, err := c.client.Get(songURL)
 	if err != nil {
 		return "", err
