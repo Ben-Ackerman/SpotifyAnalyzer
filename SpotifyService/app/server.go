@@ -2,13 +2,12 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService/spotifyapi"
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
-	"github.com/Ben-Ackerman/SpotifyAnalyzer/spotifyapi"
 	"google.golang.org/grpc"
 )
 
@@ -42,7 +41,13 @@ func (s *Server) handleSpotifyCallback() http.HandlerFunc {
 		}
 
 		if tracks != nil {
-			fmt.Fprintf(w, "<html><body><p>Results found</p></body></html>")
+			temp, err := template.ParseFiles("web/results.html")
+			if err != nil {
+				log.Println(err.Error())
+			}
+			if err := temp.Execute(w, nil); err != nil {
+				log.Fatalf(err.Error())
+			}
 			s.callLyricsService(tracks)
 		}
 	}

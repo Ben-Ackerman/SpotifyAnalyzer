@@ -1,4 +1,4 @@
-package genius
+package geniusapi
 
 import (
 	"encoding/json"

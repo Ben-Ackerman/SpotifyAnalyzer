@@ -5,13 +5,14 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/LyricsService/geniusapi"
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
-	"github.com/Ben-Ackerman/SpotifyAnalyzer/genius"
 )
 
 // Server represention of gRPC Server
 type Server struct {
-	geniusClient *genius.GeniusClient
+	GeniusClient *geniusapi.GeniusClient
+	Router       *http.ServeMux
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -24,14 +25,14 @@ func (s *Server) GetLyrics(ctx context.Context, in *api.Tracks) (*api.Tracks, er
 	for i := 0; i < len(tracks); i++ {
 		//TODO do not search for urls if we already have it
 		if len(tracks[i].GetGeniusURI()) == 0 {
-			uri, err := s.geniusClient.GetSongURL(tracks[i].GetArtist(), tracks[i].GetName())
+			uri, err := s.GeniusClient.GetSongURL(tracks[i].GetArtist(), tracks[i].GetName())
 			if err != nil {
 				return nil, nil
 			}
 			tracks[i].GeniusURI = uri
 		}
 
-		lyrics, err := s.geniusClient.GetSongLyrics(tracks[i].GetGeniusURI())
+		lyrics, err := s.GeniusClient.GetSongLyrics(tracks[i].GetGeniusURI())
 		if err != nil {
 			tracks[i].Lyrics = ""
 			log.Println(err.Error())

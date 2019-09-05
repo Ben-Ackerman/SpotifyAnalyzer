@@ -1,14 +1,15 @@
-package genius_test
+package geniusapi_test
 
 import (
-	"github.com/Ben-Ackerman/Genius_API"
-	"testing"
 	"strings"
+	"testing"
+
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/geniusapi"
 )
 
 func TestNewClient(t *testing.T) {
 	accessToken := "XSBawdJT3kZ0-0xZESIPVQf1weWj3mY53EYwPguSYlxUa3RysWHPb-9gJeyrCG3z"
-	c := genius.NewGeniusClient(nil, accessToken)
+	c := geniusapi.NewGeniusClient(nil, accessToken)
 	url, err := c.GetSongURL("Kendrick Lamar", "DNA")
 	if err != nil {
 		t.Error(err)
@@ -23,4 +24,3 @@ func TestNewClient(t *testing.T) {
 		t.Errorf("Incorrect lyrics")
 	}
 }
-

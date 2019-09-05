@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
+	"os"
 
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/LyricsService/app"
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/LyricsService/geniusapi"
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
-	"github.com/Ben-Ackerman/SpotifyAnalyzer/genius"
 	"google.golang.org/grpc"
 )
 
@@ -30,7 +30,7 @@ func run() error {
 
 	// create a server instance
 	s := app.Server{
-		geniusClient = genius.NewGeniusClient(nil, geniusAccessToken),
+		GeniusClient: geniusapi.NewGeniusClient(nil, geniusAccessToken),
 	}
 	// create a gRPC server object
 	grpcServer := grpc.NewServer()
@@ -42,4 +42,6 @@ func run() error {
 	if err := grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("failed to serve: %s", err)
 	}
+
+	return nil
 }
