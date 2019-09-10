@@ -1,0 +1,28 @@
+version: "3.7"
+services:
+  lyricsservice:
+    build: 
+      context: .
+      dockerfile: "./LyricsService/Dockerfile"
+    volumes:
+      - $GOPATH/pkg/mod:/go/pkg/mod
+    ports:
+      - "7777"
+  spotifyservice:
+    build:
+      context: .
+      dockerfile: "./SpotifyService/Dockerfile"
+    ports:
+      - "5000"
+    volumes:
+      - $GOPATH/pkg/mod:/go/pkg/mod
+    depends_on:
+      - lyricsservice
+  nginx:
+    build: 
+      context: .
+      dockerfile: "./nginx/Dockerfile"
+    ports:
+      - "80:80"
+    depends_on:
+      - spotifyservice

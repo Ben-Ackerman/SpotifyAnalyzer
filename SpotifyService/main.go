@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService/app"
-	"github.com/Ben-Ackerman/SpotifyAnalyzer/spotifyapi"
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService/spotifyapi"
 )
 
 const (
