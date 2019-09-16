@@ -48,32 +48,29 @@ func (s *Server) handleSpotifyCallback() http.HandlerFunc {
 				log.Fatal(err.Error())
 			}
 
-			var sb strings.Builder
-			sb.WriteString("<p>")
-			sb.WriteString(fmt.Sprintf("%d tracks returned\n", len(tracks)))
-			for _, val := range tracks {
-				sb.WriteString(fmt.Sprintf("artist = %s; track = %s\nlyrics:\n%s\n\n",
-					val.Artist, val.Name, val.Lyrics))
-			}
-
 			var lyricsBuilder strings.Builder
 			for _, val := range tracks {
 				lyr := cleanLyrics(val.Lyrics, removeSectionHeaders, trimWhiteSpace)
 				lyricsBuilder.WriteString(lyr)
 			}
 			wordCounts := getWordCounts(lyricsBuilder.String())
-			for key, val := range wordCounts {
-				sb.WriteString(fmt.Sprintf("%s = %d\n", key, val))
-			}
+			top20Words := getTopNWords(wordCounts, 25)
 
-			sb.WriteString("</p>")
+			var sb strings.Builder
+			sb.WriteString("[")
+			for i, key := range top20Words {
+				if i != 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(fmt.Sprintf(`{"word":"%s", "count":%d}`, key, wordCounts[key]))
+			}
+			sb.WriteString("]")
 			temp, err := template.ParseFiles("web/results.html")
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
 			input := sb.String()
-			input = strings.ReplaceAll(input, "\n", "<br>")
-			if err := temp.Execute(w, template.HTML(input)); err != nil {
+			if err := temp.Execute(w, template.JS(input)); err != nil {
 				log.Fatalf(err.Error())
 			}
 		}
