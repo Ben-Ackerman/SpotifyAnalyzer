@@ -36,8 +36,5 @@ WORKDIR /root/
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /SpotifyAnalyzer/app/main .
 
-# Expose port 7777 to the outside world
-EXPOSE 7777
-
 # Command to run the executable
 ENTRYPOINT ["./main"]

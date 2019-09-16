@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,8 +13,7 @@ import (
 )
 
 const (
-	GeniusBaseURL      = "https://api.genius.com"
-	requiredURLKeyword = "lyrics"
+	geniusBaseURL = "https://api.genius.com"
 )
 
 type GeniusClient struct {
@@ -58,7 +58,7 @@ func (c *GeniusClient) executeRequest(req *http.Request) ([]byte, error) {
 }
 
 func (c *GeniusClient) SearchSong(query string) (*Response, error) {
-	url := GeniusBaseURL + "/search"
+	url := geniusBaseURL + "/search"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -83,6 +83,8 @@ func (c *GeniusClient) SearchSong(query string) (*Response, error) {
 }
 
 func (c *GeniusClient) GetSongURL(artist string, song string) (string, error) {
+	artist = strings.TrimSpace(artist)
+	song = strings.TrimSpace(song)
 	searchQuery := fmt.Sprintf("%s %s", artist, song)
 	response, err := c.SearchSong(searchQuery)
 	if err != nil {
@@ -92,17 +94,24 @@ func (c *GeniusClient) GetSongURL(artist string, song string) (string, error) {
 	url := ""
 	for i := 0; i < len(response.Response.Hits); i++ {
 		hit := response.Response.Hits[i]
-		hitArtist := hit.Result.PrimaryArtist.Name
-		if strings.EqualFold(artist, hitArtist) {
+		hitArtist := strings.TrimSpace(hit.Result.PrimaryArtist.Name)
+
+		//Genius autocapitalizes every artist name some some people add a zero-width space to allow lower case
+		//Need to remove zero witdth space
+		//https://genius.com/discussions/295632-Some-sort-of-command-to-allow-lowercase-letters-stylization
+
+		re, err := regexp.Compile("[^a-zA-Z0-9]+")
+		if err != nil {
+			return "", err
+		}
+
+		if strings.EqualFold(re.ReplaceAllString(hitArtist, ""), re.ReplaceAllString(artist, "")) && strings.Contains(hit.Result.Url, "lyrics") {
 			url = hit.Result.Url
 			break
 		}
 	}
-
 	if url == "" {
-		return "", fmt.Errorf("No match found for artist: %s and song: %s", artist, song)
-	} else if !strings.Contains(url, "lyrics") {
-		return "", fmt.Errorf("URL: %s does not contain the keyword: %s", url, requiredURLKeyword)
+		return "", fmt.Errorf("No match found for artist: %s and song: %s\n search term = %s", artist, song, searchQuery)
 	}
 
 	return url, nil

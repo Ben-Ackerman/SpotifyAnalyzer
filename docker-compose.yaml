@@ -7,13 +7,23 @@ services:
     volumes:
       - $GOPATH/pkg/mod:/go/pkg/mod
     ports:
-      - "7777"
+      - ${LyricsServicePort}:${LyricsServicePort}
+    environment:
+      - LyricsServicePort
+      - GeniusAccessToken
   spotifyservice:
+    environment:
+      - SpotifyClientID
+      - SpotifyClientSecret
+      - SpotifyServicePort
+      - SpotifyRedirectURL
+      - LyricsServicePort
+      - LyricsServiceName
     build:
       context: .
       dockerfile: "./SpotifyService/Dockerfile"
-    ports:
-      - "5000"
+    expose:
+      - ${SpotifyServicePort}
     volumes:
       - $GOPATH/pkg/mod:/go/pkg/mod
     depends_on:

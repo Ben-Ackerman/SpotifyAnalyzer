@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -54,9 +55,9 @@ func retryDuration(resp *http.Response) time.Duration {
 	return time.Duration(numSeconds) * time.Second
 }
 
-func (c *Client) get(url string, result interface{}) error {
+func (c *Client) get(requestURL string, result interface{}) error {
 	for {
-		resp, err := c.client.Get(url)
+		resp, err := c.client.Get(requestURL)
 		if err != nil {
 			return err
 		}
@@ -92,11 +93,20 @@ func (c *Client) get(url string, result interface{}) error {
 // tracks in the time_range where n is the limit.  For more info on timeRange see
 // https://developer.spotify.com/documentation/web-api/reference/personalization/get-users-top-artists-and-tracks/
 func (c *Client) GetUserTopTracks(limit int, timeRange string) (*PagingTrack, error) {
-	url := fmt.Sprintf("%sme/top/tracks", spotifyBaseURL)
+	requestURL, err := url.Parse(fmt.Sprintf("%sme/top/tracks", spotifyBaseURL))
+	if err != nil {
+		return nil, fmt.Errorf("Malformed URL: %s", err.Error())
+	}
+	// Prepare Query Parameters
+	params := url.Values{}
+	params.Add("time_range", timeRange)
+	params.Add("limit", strconv.Itoa(limit))
 
-	// TODO add query parameters
+	// Add Query Parameters to the URL
+	requestURL.RawQuery = params.Encode() // Escape Query Parameters
+
 	var tracks PagingTrack
-	err := c.get(url, &tracks)
+	err = c.get(requestURL.String(), &tracks)
 	if err != nil {
 		return nil, err
 	}

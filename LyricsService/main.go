@@ -9,11 +9,7 @@ import (
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/LyricsService/geniusapi"
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
 	"google.golang.org/grpc"
-)
-
-var (
-	geniusAccessToken = "XSBawdJT3kZ0-0xZESIPVQf1weWj3mY53EYwPguSYlxUa3RysWHPb-9gJeyrCG3z"
-	port              = 7777
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -23,7 +19,9 @@ func main() {
 }
 
 func run() error {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	servicePort := os.Getenv("LyricsServicePort")
+	geniusAccessToken := os.Getenv("GeniusAccessToken")
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", servicePort))
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
@@ -37,6 +35,8 @@ func run() error {
 
 	// attach the Lyrics service to the server
 	api.RegisterLyricsServer(grpcServer, &s)
+
+	reflection.Register(grpcServer)
 
 	// start the server
 	if err := grpcServer.Serve(lis); err != nil {

@@ -14,7 +14,6 @@ WORKDIR /SpotifyAnalyzer/app
 # Copy go mod and sum files
 COPY SpotifyService/go.mod SpotifyService/go.sum ./
 
-#COPY go.mod go.sum api /SpotifyAnalyzer/
 COPY . /SpotifyAnalyzer/
 
 # Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
@@ -37,8 +36,7 @@ WORKDIR /root/
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /SpotifyAnalyzer/app/main .
 
-# Expose port 5000 to the outside world
-EXPOSE 5000
+COPY SpotifyService/web/ ./web
 
 # Command to run the executable
 ENTRYPOINT ["./main"]
