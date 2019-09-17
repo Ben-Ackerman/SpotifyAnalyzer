@@ -18,7 +18,7 @@ var (
 	oauthStateString = "psuedo-random"
 )
 
-// Server is a struct used to represent a server and implement http.Handler
+// Server is a struct used to represent a server while storing its dependenies along with implementing http.Handler
 type Server struct {
 	Router                 *http.ServeMux
 	TargetForLyricsService string
@@ -29,6 +29,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.Router.ServeHTTP(w, r)
 }
 
+// handleSpotifyCallback contains the logic on what needs to be done when the spotify api redirects back to our service
 func (s *Server) handleSpotifyCallback() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token, err := s.SpotifyAuth.Token(oauthStateString, r)
@@ -77,6 +78,7 @@ func (s *Server) handleSpotifyCallback() http.HandlerFunc {
 	}
 }
 
+// callLyricsService makes the grpc call to our lyricsservice
 func (s *Server) callLyricsService(p *spotifyapi.PagingTrack) ([]Track, error) {
 	var conn *grpc.ClientConn
 	conn, err := grpc.Dial(s.TargetForLyricsService, grpc.WithInsecure())
@@ -86,10 +88,7 @@ func (s *Server) callLyricsService(p *spotifyapi.PagingTrack) ([]Track, error) {
 	defer conn.Close()
 	c := api.NewLyricsClient(conn)
 
-	apitracks, err := pagingToTracks(p)
-	if err != nil {
-		return nil, fmt.Errorf("Error when calling pagingToTracks: %s", err)
-	}
+	apitracks := pagingToTracks(p)
 
 	response, err := c.GetLyrics(context.Background(), apitracks)
 	if err != nil {
@@ -106,28 +105,17 @@ func (s *Server) callLyricsService(p *spotifyapi.PagingTrack) ([]Track, error) {
 	return tracks, nil
 }
 
-func pagingToTracks(p *spotifyapi.PagingTrack) (*api.Tracks, error) {
-	length := len(p.Tracks)
-
-	trackInfo := make([]*api.Tracks_TrackInfo, length)
-	for i := 0; i < length; i++ {
-		trackInfo[i] = &api.Tracks_TrackInfo{}
-		trackInfo[i].Name = p.Tracks[i].Name
-		trackInfo[i].Artist = p.Tracks[i].Artists[0].Name
-	}
-	tracks := &api.Tracks{}
-	tracks.TrackInfo = trackInfo
-
-	return tracks, nil
-}
-
-func (s *Server) handleSpotifyLogin() http.HandlerFunc {
+// handleLogin contains the logic on what to perform when the user enters login
+func (s *Server) handleLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		url := s.SpotifyAuth.AuthCodeURL(oauthStateString, true)
 		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	}
 }
 
+// handles the logic on what to do when the user first enters the site.
+// not our NGINX server does not redirect for root so this function is only called
+// when we are testing this service locally without a proxy
 func (s *Server) handleRoot() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		temp, err := template.ParseFiles("web/localTesting.html")

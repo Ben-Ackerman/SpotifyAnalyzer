@@ -43,6 +43,7 @@ func shouldRetry(status int) bool {
 	return status == http.StatusAccepted || status == http.StatusTooManyRequests
 }
 
+// retryDuration contains the logic for determining when to retry request.
 func retryDuration(resp *http.Response) time.Duration {
 	str := resp.Header.Get("Retry-After")
 	if str == "" {
@@ -55,6 +56,7 @@ func retryDuration(resp *http.Response) time.Duration {
 	return time.Duration(numSeconds) * time.Second
 }
 
+// get performs a http get request on the url provided
 func (c *Client) get(requestURL string, result interface{}) error {
 	for {
 		resp, err := c.client.Get(requestURL)
