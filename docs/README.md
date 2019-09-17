@@ -17,7 +17,7 @@ for the expected small audience the system would probably be better served by a 
 Developement dependences -
 * Docker https://docs.docker.com/install/
 * Golang 1.13 https://golang.org/doc/install
-* protobuf compiler 3.9.1 https://grpc.io/docs/quickstart/go/
+* protobuf compiler v1.2.0 https://grpc.io/docs/quickstart/go/
 
 1. First download the required dependenies and cloning this github repo.
 2. Next you need to set the necessary enironment variables for the docker-compose.yaml file to use.
