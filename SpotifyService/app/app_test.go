@@ -86,3 +86,17 @@ func TestPagingToTracks(t *testing.T) {
 		t.Errorf("FAILED, track 2 did not convert correctly")
 	}
 }
+
+func TestStopWords(t *testing.T) {
+	s := &Server{}
+	s.InitStopWords()
+	wordCount := map[string]int{
+		"a":       1,
+		"an":      3,
+		"asdfasd": 5,
+	}
+	result := s.removeStopWords(wordCount)
+	if len(result) != 1 {
+		t.Errorf("FAILED, error removing stop words final count is not correct.  len = %d", len(result))
+	}
+}

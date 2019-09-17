@@ -36,7 +36,7 @@ WORKDIR /root/
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /SpotifyAnalyzer/app/main .
 
-COPY SpotifyService/web/ ./web
+COPY SpotifyService/app/src/ ./src
 
 # Command to run the executable
 ENTRYPOINT ["./main"]

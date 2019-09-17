@@ -24,6 +24,7 @@ func run() error {
 		TargetForLyricsService: os.Getenv("LyricsServiceName") + ":" + os.Getenv("LyricsServicePort"),
 		SpotifyAuth:            spotifyapi.NewAuthenticator(redirectURL, clientID, clientSecret, spotifyapi.ScopeUserTopRead),
 	}
+	s.InitStopWords()
 	s.Routes()
 
 	servicePort := os.Getenv("SpotifyServicePort")
