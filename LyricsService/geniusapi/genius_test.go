@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Ben-Ackerman/SpotifyAnalyzer/geniusapi"
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/LyricsService/geniusapi"
 )
 
 func TestNewClient(t *testing.T) {

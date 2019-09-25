@@ -1,5 +1,18 @@
 version: "3.7"
 services:
+  analyzerservice:
+    build:
+      context: .
+      dockerfile: "./AnalyzerService/Dockerfile"
+    volumes:
+      - $GOPATH/pkg/mod:/go/pkg/mod
+    ports:
+      - ${AnalyzerServicePort}:${AnalyzerServicePort}
+    environment:
+      - AnalyzerServicePort
+      - LyricsServicePort
+      - LyricsServiceName
+      - SessionsStoreKey
   lyricsservice:
     build: 
       context: .
@@ -17,8 +30,7 @@ services:
       - SpotifyClientSecret
       - SpotifyServicePort
       - SpotifyRedirectURL
-      - LyricsServicePort
-      - LyricsServiceName
+      - SessionsStoreKey
     build:
       context: .
       dockerfile: "./SpotifyService/Dockerfile"

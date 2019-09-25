@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService/spotifyapi"
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
 )
 
@@ -103,10 +102,10 @@ func getTopNWords(wordMap map[string]int, n int) []string {
 		keys[i] = key
 		i++
 	}
-
 	//Run bubble sort N times on keys to get the top N words
 	//Sorting the words from largest to smallest
-	for j := 0; j < n; j++ {
+	size := min(len(wordMap), n)
+	for j := 0; j < size; j++ {
 		for i := len(keys) - 1; i > 0; i-- {
 			if wordMap[keys[i-1]] < wordMap[keys[i]] {
 				keys[i], keys[i-1] = keys[i-1], keys[i]
@@ -114,22 +113,32 @@ func getTopNWords(wordMap map[string]int, n int) []string {
 		}
 	}
 
-	return keys[0:n]
+	return keys[0:size]
 }
 
-// pagingToTracks takes in a spotifyapi PagingTrack struct and creates the corresponding api Tracks struct.
-// The returned api Tracks object can then be used in our grpc call to our lyricsservice
-func pagingToTracks(p *spotifyapi.PagingTrack) *api.Tracks {
-	length := len(p.Tracks)
+// Finds the min of two ints
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+// tacksToAPITracks tacks in a slice of Track structs and creates the corresponding api.Tracks struct to be used with grpc calls
+// to the lyrics service
+func tracksToAPITracks(t []Track) *api.Tracks {
+	length := len(t)
 
 	trackInfo := make([]*api.Tracks_TrackInfo, length)
 	for i := 0; i < length; i++ {
 		trackInfo[i] = &api.Tracks_TrackInfo{}
-		trackInfo[i].Name = p.Tracks[i].Name
-		trackInfo[i].Artist = p.Tracks[i].Artists[0].Name
+		trackInfo[i].Name = t[i].Name
+		trackInfo[i].Artist = t[i].Artist
+		trackInfo[i].GeniusURI = t[i].GeniusURI
+		trackInfo[i].Lyrics = t[i].Lyrics
 	}
-	tracks := &api.Tracks{}
-	tracks.TrackInfo = trackInfo
+	apiTracks := &api.Tracks{}
+	apiTracks.TrackInfo = trackInfo
 
-	return tracks
+	return apiTracks
 }

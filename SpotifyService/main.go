@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/sessions"
+
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService/app"
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService/spotifyapi"
 )
@@ -19,13 +21,14 @@ func run() error {
 	clientID := os.Getenv("SpotifyClientID")
 	clientSecret := os.Getenv("SpotifyClientSecret")
 	redirectURL := os.Getenv("SpotifyRedirectURL")
+	sessionStoreKey := os.Getenv("SessionsStoreKey")
 	s := &app.Server{
-		Router:                 http.DefaultServeMux,
-		TargetForLyricsService: os.Getenv("LyricsServiceName") + ":" + os.Getenv("LyricsServicePort"),
-		SpotifyAuth:            spotifyapi.NewAuthenticator(redirectURL, clientID, clientSecret, spotifyapi.ScopeUserTopRead),
+		Router:       http.DefaultServeMux,
+		SpotifyAuth:  spotifyapi.NewAuthenticator(redirectURL, clientID, clientSecret, spotifyapi.ScopeUserTopRead),
+		SessionStore: sessions.NewCookieStore([]byte(sessionStoreKey)),
+		CookieName:   "cookie-store-spotifyAnalzer",
 	}
-	s.InitStopWords()
-	s.Routes()
+	s.Init()
 
 	servicePort := os.Getenv("SpotifyServicePort")
 	err := http.ListenAndServe(fmt.Sprintf(":%s", servicePort), s)

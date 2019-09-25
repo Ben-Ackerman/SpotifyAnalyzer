@@ -12,6 +12,7 @@ require (
 )
 
 replace (
+	github.com/Ben-Ackerman/SpotifyAnalyzer/AnalyzerService => ./AnalyzerService
 	github.com/Ben-Ackerman/SpotifyAnalyzer/LyricsService => ./LyricsService
 	github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService => ./SpotifyService
 )

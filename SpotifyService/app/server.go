@@ -1,18 +1,13 @@
 package app
 
 import (
-	"context"
+	"encoding/gob"
 	"fmt"
-	"html/template"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService/spotifyapi"
-	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
-	"google.golang.org/grpc"
+	"github.com/gorilla/sessions"
 )
 
 var (
@@ -20,12 +15,20 @@ var (
 	oauthStateString = "psuedo-random"
 )
 
+// Track is a stuct used to store meta data about a given track
+type Track struct {
+	Artist    string
+	Name      string
+	GeniusURI string
+	Lyrics    string
+}
+
 // Server is a struct used to represent a server while storing its dependenies along with implementing http.Handler
 type Server struct {
-	Router                 *http.ServeMux
-	TargetForLyricsService string
-	SpotifyAuth            spotifyapi.Authenticator
-	stopWordList           map[string]bool
+	Router       *http.ServeMux
+	SpotifyAuth  spotifyapi.Authenticator
+	SessionStore *sessions.CookieStore
+	CookieName   string
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -33,80 +36,58 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleSpotifyCallback contains the logic on what needs to be done when the spotify api redirects back to our service
-func (s *Server) handleSpotifyCallback() http.HandlerFunc {
+func (s *Server) handleSpotifyLoginCallback() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		session, err := s.SessionStore.Get(r, s.CookieName)
+		if err != nil {
+			log.Printf("Error in handleSpotifyLoginCallback: %s\n", err)
+		}
+
+		if spotifyLogin, ok := session.Values["loggedInWithSpotify"].(bool); ok && spotifyLogin {
+			// No need to login twice
+			// Prevents errors when user back-clicks back to this page
+			return
+		}
+
 		token, err := s.SpotifyAuth.Token(oauthStateString, r)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Printf("Error in spotify callback: %s", err.Error())
+			return
 		}
 		client := s.SpotifyAuth.NewClient(token)
 
 		pagingTracks, err := client.GetUserTopTracks(50, spotifyapi.SpotifyTimeRangeLong)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Printf("Error in spotify callback getting top 50 tracks: %s", err.Error())
+			return
 		}
 
+		var tracks []Track
 		if pagingTracks != nil {
-			tracks, err := s.callLyricsService(pagingTracks)
-			if err != nil {
-				log.Fatal(err.Error())
-			}
+			tracks = spotifyPagingToTracks(pagingTracks)
+		}
 
-			var lyricsBuilder strings.Builder
-			for _, val := range tracks {
-				lyr := cleanLyrics(val.Lyrics, removeSectionHeaders, trimWhiteSpace)
-				lyricsBuilder.WriteString(lyr)
+		if tracks != nil {
+			//tracks, err = s.callLyricsService(tracks)
+			for i := 0; i < len(tracks); i++ {
+				tracks[i].Lyrics = "test"
 			}
-			wordCounts := getWordCounts(lyricsBuilder.String())
-			wordCounts = s.removeStopWords(wordCounts)
-			top20Words := getTopNWords(wordCounts, 20)
-
-			var sb strings.Builder
-			sb.WriteString("[")
-			for i, key := range top20Words {
-				if i != 0 {
-					sb.WriteString(",")
-				}
-				sb.WriteString(fmt.Sprintf(`{"word":"%s", "count":%d}`, key, wordCounts[key]))
-			}
-			sb.WriteString("]")
-			temp, err := template.ParseFiles("src/results.html")
 			if err != nil {
-				log.Fatalf(err.Error())
-			}
-			input := sb.String()
-			if err := temp.Execute(w, template.JS(input)); err != nil {
-				log.Fatalf(err.Error())
+				log.Printf("Error calling lyric service %s", err.Error())
+				return
 			}
 		}
+
+		session.Values["loggedInWithSpotify"] = true
+		session.Values["usersTopTracks"] = tracks
+		err = session.Save(r, w)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		//TODO remove
+		fmt.Println(w, "loggin success")
 	}
-}
-
-// callLyricsService makes the grpc call to our lyricsservice
-func (s *Server) callLyricsService(p *spotifyapi.PagingTrack) ([]Track, error) {
-	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(s.TargetForLyricsService, grpc.WithInsecure())
-	if err != nil {
-		return nil, fmt.Errorf("did not connect: %s", err)
-	}
-	defer conn.Close()
-	c := api.NewLyricsClient(conn)
-
-	apitracks := pagingToTracks(p)
-
-	response, err := c.GetLyrics(context.Background(), apitracks)
-	if err != nil {
-		return nil, fmt.Errorf("Error when calling GetLyrics: %s", err)
-	}
-
-	tracks := make([]Track, len(response.TrackInfo))
-	for i := 0; i < len(response.TrackInfo); i++ {
-		tracks[i].Lyrics = response.GetTrackInfo()[i].GetLyrics()
-		tracks[i].Artist = response.GetTrackInfo()[i].GetArtist()
-		tracks[i].Name = response.GetTrackInfo()[i].GetName()
-	}
-
-	return tracks, nil
 }
 
 // handleLogin contains the logic on what to perform when the user enters login
@@ -117,48 +98,20 @@ func (s *Server) handleLogin() http.HandlerFunc {
 	}
 }
 
-// handles the logic on what to do when the user first enters the site.
-// not our NGINX server does not redirect for root so this function is only called
-// when we are testing this service locally without a proxy
-func (s *Server) handleRoot() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		temp, err := template.ParseFiles("src/localTesting.html")
-		if err != nil {
-			log.Println(err.Error())
-		}
-		temp.Execute(w, nil)
-	}
+// Init calls necessary initialization for the server
+func (s *Server) Init() {
+	s.Routes()
+	gob.Register([]Track{})
 }
 
-// InitStopWords initializes the stop words for the server
-func (s *Server) InitStopWords() error {
-	s.stopWordList = make(map[string]bool)
-	file, err := os.Open("src/stopwords.txt")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	text, err := ioutil.ReadAll(file)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(string(text), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		s.stopWordList[line] = true
-	}
+// spotifyPagingToTracks takes in a spotifyapi PagingTrack struct and creates the corresponding slice of Track structs.
+func spotifyPagingToTracks(p *spotifyapi.PagingTrack) []Track {
+	length := len(p.Tracks)
 
-	return nil
-}
-
-// removeStopWords filters out stop words from wordCounts and returns a new map
-func (s *Server) removeStopWords(wordCounts map[string]int) map[string]int {
-	newMap := make(map[string]int)
-	for key := range wordCounts {
-		_, ok := s.stopWordList[key]
-		if !ok {
-			newMap[key] = wordCounts[key]
-		}
+	tracks := make([]Track, length)
+	for i := 0; i < length; i++ {
+		tracks[i].Name = p.Tracks[i].Name
+		tracks[i].Artist = p.Tracks[i].Artists[0].Name
 	}
-	return newMap
+	return tracks
 }

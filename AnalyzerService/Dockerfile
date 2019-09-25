@@ -12,7 +12,7 @@ LABEL maintainer="Benjamin Ackerman <ben@tacmail.net>"
 WORKDIR /SpotifyAnalyzer/app
 
 # Copy go mod and sum files
-COPY SpotifyService/go.mod SpotifyService/go.sum ./
+COPY AnalyzerService/go.mod AnalyzerService/go.sum ./
 
 COPY . /SpotifyAnalyzer/
 
@@ -20,7 +20,7 @@ COPY . /SpotifyAnalyzer/
 RUN go mod download
 
 # Copy the source from the current directory to the Working Directory inside the container
-COPY SpotifyService/ .
+COPY AnalyzerService/ .
 
 # Build the Go app
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
@@ -36,7 +36,7 @@ WORKDIR /root/
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /SpotifyAnalyzer/app/main .
 
-COPY SpotifyService/src/ ./src
+COPY AnalyzerService/src/ ./src
 
 # Command to run the executable
 ENTRYPOINT ["./main"]
