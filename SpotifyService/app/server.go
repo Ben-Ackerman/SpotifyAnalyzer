@@ -2,9 +2,9 @@ package app
 
 import (
 	"encoding/gob"
-	"fmt"
 	"log"
 	"net/http"
+	"text/template"
 
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/SpotifyService/spotifyapi"
 	"github.com/gorilla/sessions"
@@ -44,8 +44,11 @@ func (s *Server) handleSpotifyLoginCallback() http.HandlerFunc {
 		}
 
 		if spotifyLogin, ok := session.Values["loggedInWithSpotify"].(bool); ok && spotifyLogin {
-			// No need to login twice
-			// Prevents errors when user back-clicks back to this page
+			temp, err := template.ParseFiles("src/spotifyRedirect.html")
+			if err != nil {
+				log.Println(err.Error())
+			}
+			temp.Execute(w, nil)
 			return
 		}
 
@@ -67,17 +70,6 @@ func (s *Server) handleSpotifyLoginCallback() http.HandlerFunc {
 			tracks = spotifyPagingToTracks(pagingTracks)
 		}
 
-		if tracks != nil {
-			//tracks, err = s.callLyricsService(tracks)
-			for i := 0; i < len(tracks); i++ {
-				tracks[i].Lyrics = "test"
-			}
-			if err != nil {
-				log.Printf("Error calling lyric service %s", err.Error())
-				return
-			}
-		}
-
 		session.Values["loggedInWithSpotify"] = true
 		session.Values["usersTopTracks"] = tracks
 		err = session.Save(r, w)
@@ -85,8 +77,12 @@ func (s *Server) handleSpotifyLoginCallback() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		//TODO remove
-		fmt.Println(w, "loggin success")
+
+		temp, err := template.ParseFiles("src/spotifyRedirect.html")
+		if err != nil {
+			log.Println(err.Error())
+		}
+		temp.Execute(w, nil)
 	}
 }
 

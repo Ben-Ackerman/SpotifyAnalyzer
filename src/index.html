@@ -1,5 +1,19 @@
 <html>
+        <script type="text/javascript">
+            function OpenSpotifyLogin() {
+                url = "/spotify/login"
+                newwindow=window.open(url,'spotifylogin','height=200,width=150');
+                if (window.focus) {newwindow.focus()}
+            }
+
+            function handleMessage(e) {
+                window.location.replace("http://127.0.0.1/userstopwords");
+            }
+
+            window.addEventListener('message', handleMessage);
+            
+        </script>
     <body>
-        <a href="/spotify/login">Spotify Log In</a>
+        <input id="btnLogin" type="button" onclick="OpenSpotifyLogin();" value="Log in with spotify" />
     </body>
 </html>

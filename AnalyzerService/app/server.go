@@ -1,7 +1,9 @@
 package app
 
 import (
+	"context"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -10,7 +12,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
 	"github.com/gorilla/sessions"
+	"google.golang.org/grpc"
 )
 
 type Server struct {
@@ -23,6 +27,33 @@ type Server struct {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.Router.ServeHTTP(w, r)
+}
+
+// callLyricsService makes the grpc call to our lyricsservice
+func (s *Server) callLyricsService(t []Track) ([]Track, error) {
+	var conn *grpc.ClientConn
+	conn, err := grpc.Dial(s.TargetForLyricsService, grpc.WithInsecure())
+	if err != nil {
+		return nil, fmt.Errorf("did not connect: %s", err)
+	}
+	defer conn.Close()
+	c := api.NewLyricsClient(conn)
+
+	apitracks := tracksToAPITracks(t)
+
+	response, err := c.GetLyrics(context.Background(), apitracks)
+	if err != nil {
+		return nil, fmt.Errorf("Error when calling GetLyrics: %s", err)
+	}
+
+	tracks := make([]Track, len(response.TrackInfo))
+	for i := 0; i < len(response.TrackInfo); i++ {
+		tracks[i].Lyrics = response.GetTrackInfo()[i].GetLyrics()
+		tracks[i].Artist = response.GetTrackInfo()[i].GetArtist()
+		tracks[i].Name = response.GetTrackInfo()[i].GetName()
+	}
+
+	return tracks, nil
 }
 
 // handles the logic on what to do when the user first enters the site.
@@ -49,8 +80,25 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 			http.Error(w, "User must first log in with spotify", http.StatusBadRequest)
 		}
 
+		type wordToCount struct {
+			Word  string `json:"word"`
+			Count int    `json:"count"`
+		}
+		type results struct {
+			Result []wordToCount `json:"result"`
+		}
+		rv := &results{}
+
 		tracks, ok := session.Values["usersTopTracks"].([]Track)
 		if ok {
+			if tracks != nil {
+				tracks, err = s.callLyricsService(tracks)
+				if err != nil {
+					log.Printf("Error calling lyric service %s", err.Error())
+					return
+				}
+			}
+
 			var lyricsBuilder strings.Builder
 			for _, val := range tracks {
 				lyr := cleanLyrics(val.Lyrics, removeSectionHeaders, trimWhiteSpace)
@@ -60,24 +108,13 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 			wordCounts = s.removeStopWords(wordCounts)
 			top20Words := getTopNWords(wordCounts, 20)
 
-			var sb strings.Builder
-			sb.WriteString("[")
+			rv.Result = make([]wordToCount, len(top20Words))
 			for i, key := range top20Words {
-				if i != 0 {
-					sb.WriteString(",")
-				}
-				sb.WriteString(fmt.Sprintf(`{"word":"%s", "count":%d}`, key, wordCounts[key]))
-			}
-			sb.WriteString("]")
-			temp, err := template.ParseFiles("src/results.html")
-			if err != nil {
-				log.Fatalf(err.Error())
-			}
-			input := sb.String()
-			if err := temp.Execute(w, template.JS(input)); err != nil {
-				log.Fatalf(err.Error())
+				rv.Result[i].Word = key
+				rv.Result[i].Count = wordCounts[key]
 			}
 		}
+		json.NewEncoder(w).Encode(rv)
 	}
 }
 

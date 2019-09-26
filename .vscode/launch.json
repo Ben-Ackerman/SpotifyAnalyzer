@@ -15,7 +15,8 @@
                 "SpotifyClientSecret": "8d9e87c50f864be1a6499cc7e9381664",
                 "SpotifyServicePort": "5000",
                 "SpotifyRedirectURL": "http://127.0.0.1:5000/spotify/callback",
-                "SessionsStoreKey": "2C824DBC941841A2E58717E8E0A1CEAED43EF2B0525AA52E"
+                "SessionsStoreKey": "2C824DBC941841A2E58717E8E0A1CEAED43EF2B0525AA52E",
+                "AnalyzerServicePort": "4444"
             },
             "args": []
         }
