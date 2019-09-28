@@ -11,8 +11,12 @@ LABEL maintainer="Benjamin Ackerman <ben@tacmail.net>"
 # Set the Current Working Directory inside the container
 WORKDIR /SpotifyAnalyzer/app
 
+# Install the Certificate-Authority certificates for the app to be able to make
+# calls to HTTPS endpoints.
+RUN apk add --no-cache ca-certificates
+
 # Copy go mod and sum files
-COPY AnalyzerService/go.mod AnalyzerService/go.sum ./
+#COPY AnalyzerService/go.mod AnalyzerService/go.sum ./
 
 COPY . /SpotifyAnalyzer/
 
@@ -23,15 +27,17 @@ RUN go mod download
 COPY AnalyzerService/ .
 
 # Build the Go app
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+# Compile the Go application as a static binary by setting CGO_ENABLED=0 
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-s -w' -a -o main .
 
 
 ######## Start a new stage from scratch #######
-FROM alpine:latest  
-
-RUN apk --no-cache add ca-certificates
+FROM scratch  
 
 WORKDIR /root/
+
+# Import the Certificate-Authority certificates for enabling HTTPS.
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /SpotifyAnalyzer/app/main .

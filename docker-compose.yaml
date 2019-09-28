@@ -13,6 +13,8 @@ services:
       - LyricsServicePort
       - LyricsServiceName
       - SessionsStoreKey
+    depends_on:
+      - lyricsservice
   lyricsservice:
     build: 
       context: .
@@ -38,8 +40,6 @@ services:
       - ${SpotifyServicePort}
     volumes:
       - $GOPATH/pkg/mod:/go/pkg/mod
-    depends_on:
-      - lyricsservice
   nginx:
     build: 
       context: .
@@ -48,3 +48,6 @@ services:
       - "80:80"
     depends_on:
       - spotifyservice
+      - analyzerservice
+
+  
