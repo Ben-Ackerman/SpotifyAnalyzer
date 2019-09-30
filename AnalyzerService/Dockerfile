@@ -16,7 +16,7 @@ WORKDIR /SpotifyAnalyzer/app
 RUN apk add --no-cache ca-certificates
 
 # Copy go mod and sum files
-#COPY AnalyzerService/go.mod AnalyzerService/go.sum ./
+COPY AnalyzerService/go.mod AnalyzerService/go.sum ./
 
 COPY . /SpotifyAnalyzer/
 

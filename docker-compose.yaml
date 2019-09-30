@@ -49,5 +49,16 @@ services:
     depends_on:
       - spotifyservice
       - analyzerservice
+  postgres:
+    image: "postgres:11"
+    environment:
+      - POSTGRES_PASSWORD
+    container_name: "postgres_1"
+    ports:
+      - "5555:5555"
+    volumes:
+      - dbdata_1:/var/lib/postgresql/data
 
+volumes:
+  dbdata_1:
   
