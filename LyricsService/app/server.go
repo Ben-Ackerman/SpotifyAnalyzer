@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"sync"
 
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/LyricsService/geniusapi"
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
@@ -21,37 +20,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetLyrics gets the lyrics for the input tracks
-func (s *Server) GetLyrics(ctx context.Context, in *api.Tracks) (*api.Tracks, error) {
-	tracks := in.GetTrackInfo()
-
-	var waitgroup sync.WaitGroup
-	for i := 0; i < len(tracks); i++ {
-		waitgroup.Add(1)
-		go func(j int) {
-			if len(tracks[j].GetGeniusURI()) == 0 {
-				uri, err := s.GeniusClient.GetSongURL(tracks[j].GetArtist(), tracks[j].GetName())
-				if err != nil {
-					tracks[j].GeniusURI = ""
-					log.Println(err.Error())
-				} else {
-					tracks[j].GeniusURI = uri
-				}
-			}
-
-			lyrics, err := s.GeniusClient.GetSongLyrics(tracks[j].GetGeniusURI())
-			if err != nil {
-				tracks[j].Lyrics = ""
-				log.Println(err.Error())
-			} else {
-				tracks[j].Lyrics = lyrics
-			}
-
-			waitgroup.Done()
-		}(i)
+func (s *Server) GetLyrics(ctx context.Context, track *api.TracksInfo) (*api.LyricsInfo, error) {
+	uri, err := s.GeniusClient.GetSongURL(ctx, track.GetArtist(), track.GetName())
+	if err != nil {
+		log.Printf("Error geting uri from genius.com: %s", err)
+		uri = ""
 	}
 
-	waitgroup.Wait()
-	in.TrackInfo = tracks
+	lyrics, err := s.GeniusClient.GetSongLyrics(ctx, uri)
+	if err != nil {
+		log.Printf("Error geting lyrics from genius.com: %s", err)
+		lyrics = ""
+	}
 
-	return in, nil
+	result := &api.LyricsInfo{
+		GeniusURI: uri,
+		Lyrics:    lyrics,
+	}
+	return result, nil
 }

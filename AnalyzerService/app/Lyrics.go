@@ -3,19 +3,7 @@ package app
 import (
 	"regexp"
 	"strings"
-
-	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
 )
-
-// Track is a stuct used to store meta data about a given track
-type Track struct {
-	ID        string
-	Artist    string
-	Name      string
-	GeniusURI string
-	Lyrics    string
-	Rank      string
-}
 
 type lyricsCleaningOptions int
 
@@ -124,23 +112,4 @@ func min(x, y int) int {
 		return x
 	}
 	return y
-}
-
-// tacksToAPITracks tacks in a slice of Track structs and creates the corresponding api.Tracks struct to be used with grpc calls
-// to the lyrics service
-func tracksToAPITracks(t []Track) *api.Tracks {
-	length := len(t)
-
-	trackInfo := make([]*api.Tracks_TrackInfo, length)
-	for i := 0; i < length; i++ {
-		trackInfo[i] = &api.Tracks_TrackInfo{}
-		trackInfo[i].Name = t[i].Name
-		trackInfo[i].Artist = t[i].Artist
-		trackInfo[i].GeniusURI = t[i].GeniusURI
-		trackInfo[i].Lyrics = t[i].Lyrics
-	}
-	apiTracks := &api.Tracks{}
-	apiTracks.TrackInfo = trackInfo
-
-	return apiTracks
 }

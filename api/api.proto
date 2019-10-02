@@ -2,18 +2,16 @@ syntax = "proto3";
 
 package api;
 
-message Tracks {
-    message TrackInfo {
-        string name = 1;
-        string artist = 2;
-        string geniusURI = 3;
-        string lyrics = 4;
-        string id = 5;
-        int32 rank = 6;
-    }
-    repeated TrackInfo trackInfo = 1;
+message TracksInfo {
+    string name = 1;
+    string artist = 2;
+}
+
+message LyricsInfo {
+    string lyrics = 1;
+    string geniusURI = 2;
 }
 
 service Lyrics {
-    rpc GetLyrics(Tracks) returns (Tracks) {}
+    rpc GetLyrics(TracksInfo) returns (LyricsInfo) {}
 }

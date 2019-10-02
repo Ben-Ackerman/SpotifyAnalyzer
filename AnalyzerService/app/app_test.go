@@ -52,24 +52,6 @@ func TestGetTopNWords(t *testing.T) {
 	}
 }
 
-func testTracksToAPI(t *testing.T) {
-	tracks := []Track{
-		Track{Name: "name1", Artist: "name1"},
-		Track{Name: "name2", Artist: "name2"},
-	}
-	r := tracksToAPITracks(tracks)
-
-	if r == nil {
-		t.Errorf("FAILED, result should not be nil")
-	}
-	if r.GetTrackInfo()[0].GetName() != "name1" || r.GetTrackInfo()[0].GetArtist() != "name1" {
-		t.Errorf("FAILED, track 1 did not convert correctly")
-	}
-	if r.GetTrackInfo()[1].GetName() != "name2" || r.GetTrackInfo()[1].GetArtist() != "name2" {
-		t.Errorf("FAILED, track 2 did not convert correctly")
-	}
-}
-
 func TestStopWords(t *testing.T) {
 	s := &Server{}
 	s.InitStopWords()

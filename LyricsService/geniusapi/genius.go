@@ -1,6 +1,7 @@
 package geniusapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -88,7 +89,7 @@ func (c *GeniusClient) SearchSong(query string) (*Response, error) {
 
 // GetSongURL takes in an artist and a song and returns the URL of the corresponding track on genius.com.
 // Not if no matching url is found using genius.com's search API then an error is thrown
-func (c *GeniusClient) GetSongURL(artist string, song string) (string, error) {
+func (c *GeniusClient) GetSongURL(ctx context.Context, artist string, song string) (string, error) {
 	artist = strings.TrimSpace(artist)
 	song = strings.TrimSpace(song)
 	searchQuery := fmt.Sprintf("%s %s", artist, song)
@@ -124,7 +125,7 @@ func (c *GeniusClient) GetSongURL(artist string, song string) (string, error) {
 }
 
 // GetSongLyrics scapes the provided URL for lyrics
-func (c *GeniusClient) GetSongLyrics(songURL string) (string, error) {
+func (c *GeniusClient) GetSongLyrics(ctx context.Context, songURL string) (string, error) {
 	// Request the HTML page.
 	if len(songURL) < 0 {
 		return "", fmt.Errorf("No url provided to GeniusClient.GetSongLyrics")

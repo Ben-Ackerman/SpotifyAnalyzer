@@ -11,51 +11,40 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
 	"github.com/gorilla/sessions"
 	"google.golang.org/grpc"
 )
 
+// Track is a stuct used to store meta data about a given track
+type Track struct {
+	ID        string
+	Artist    string
+	Name      string
+	GeniusURI string
+	Lyrics    string
+	Rank      string
+}
+
 // Server represents an instance of a server
 type Server struct {
-	Router                 *http.ServeMux
+	Router       *http.ServeMux
+	stopWordList map[string]bool
+	Database     Database
+
+	// Session management dependences
+	SessionStore *sessions.CookieStore
+	CookieName   string
+
+	// Lyric service dependences
 	TargetForLyricsService string
-	stopWordList           map[string]bool
-	SessionStore           *sessions.CookieStore
-	CookieName             string
-	Database               Database
+	LyricServiceConn       *grpc.ClientConn
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.Router.ServeHTTP(w, r)
-}
-
-// callLyricsService makes the grpc call to our lyricsservice
-func (s *Server) callLyricsService(t []Track) ([]Track, error) {
-	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(s.TargetForLyricsService, grpc.WithInsecure())
-	if err != nil {
-		return nil, fmt.Errorf("did not connect: %s", err)
-	}
-	defer conn.Close()
-	c := api.NewLyricsClient(conn)
-
-	apitracks := tracksToAPITracks(t)
-
-	response, err := c.GetLyrics(context.Background(), apitracks)
-	if err != nil {
-		return nil, fmt.Errorf("Error when calling GetLyrics: %s", err)
-	}
-
-	tracks := make([]Track, len(response.TrackInfo))
-	for i := 0; i < len(response.TrackInfo); i++ {
-		tracks[i].Lyrics = response.GetTrackInfo()[i].GetLyrics()
-		tracks[i].Artist = response.GetTrackInfo()[i].GetArtist()
-		tracks[i].Name = response.GetTrackInfo()[i].GetName()
-	}
-
-	return tracks, nil
 }
 
 // handles the logic on what to do when the user first enters the site.
@@ -94,33 +83,39 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 		tracks, ok := session.Values["usersTopTracks"].([]Track)
 		if ok {
 			if tracks != nil {
-				lyriclessTracks := []Track{}
-
+				var waitgroup sync.WaitGroup
 				for i := 0; i < len(tracks); i++ {
-					id, err := s.Database.GetTrackID(tracks[i].Name, tracks[i].Artist)
+					tracks[i].ID, err = s.Database.GetTrackID(tracks[i].Name, tracks[i].Artist)
 					if err != nil {
 						log.Printf("Error calling tracks database: %s", err)
 						return
 					}
-					if id == "" {
-						lyriclessTracks = append(lyriclessTracks, tracks[i])
-					}
-				}
-				lyriclessTracks, err = s.callLyricsService(lyriclessTracks)
-
-				for i := 0; i < len(tracks); i++ {
 					if tracks[i].ID == "" {
-						for j := 0; j < len(lyriclessTracks); j++ {
-							if lyriclessTracks[j].Rank == tracks[i].Rank {
-								lyriclessTracks[j].ID, err = s.Database.InsertTrack(&lyriclessTracks[j])
+						waitgroup.Add(1)
+						go func(j int) {
+							// Call services to populate info and then place in database
+							lyrics, geniusURI, err := s.callLyricsService(r.Context(), tracks[i].Artist, tracks[i].Name)
+							errFound := false
+							if err != nil {
+								log.Printf("Error calling lyric service: %s", err)
+								errFound = true
+							}
+
+							if !errFound {
+								tracks[i].Lyrics = lyrics
+								tracks[i].GeniusURI = geniusURI
+
+								// Insert populated track into database for use later if another user
+								// need the same track info
+								tracks[i].ID, err = s.Database.InsertTrack(&tracks[i])
 								if err != nil {
 									log.Printf("Error calling tracks database: %s", err)
-									return
+									errFound = true
 								}
-								tracks[i] = lyriclessTracks[j]
-								break
 							}
-						}
+
+							waitgroup.Done()
+						}(i)
 					} else {
 						result, err := s.Database.GetTrack(tracks[i].ID)
 						if err != nil {
@@ -131,10 +126,7 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 						tracks[i].Lyrics = result.Lyrics
 					}
 				}
-				if err != nil {
-					log.Printf("Error calling lyric service %s", err.Error())
-					return
-				}
+				waitgroup.Wait()
 			}
 
 			var lyricsBuilder strings.Builder
@@ -156,15 +148,58 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 	}
 }
 
+// callLyricsService makes the grpc call to our lyricsservice and returns the lyrics and the geniusURI of the input track
+func (s *Server) callLyricsService(ctx context.Context, artist string, name string) (string, string, error) {
+	if artist == "" {
+		return "", "", fmt.Errorf("Must provide an artist to callLyricsService")
+	}
+	if name == "" {
+		return "", "", fmt.Errorf("Must provide an name to callLyricsService")
+	}
+	client := api.NewLyricsClient(s.LyricServiceConn)
+
+	trackInfo := &api.TracksInfo{
+		Name:   name,
+		Artist: artist,
+	}
+
+	response, err := client.GetLyrics(ctx, trackInfo)
+	if err != nil {
+		return "", "", fmt.Errorf("Error when calling GetLyrics: %s", err)
+	}
+
+	return response.GetLyrics(), response.GetGeniusURI(), nil
+}
+
+// Close closes all necessary conncections when server stops
+func (s *Server) Close() {
+	s.Database.Close()
+	s.LyricServiceConn.Close()
+}
+
 // Init calls necessary initialization for the server
 func (s *Server) Init() error {
-	err := s.InitStopWords()
-	if err != nil {
+	if err := s.InitStopWords(); err != nil {
+		return err
+	}
+
+	if err := s.InitLyricServiceConn(); err != nil {
 		return err
 	}
 
 	s.Routes()
 	gob.Register([]Track{})
+	return nil
+}
+
+// InitLyricServiceConn initites a grpc client for the lyrics service
+func (s *Server) InitLyricServiceConn() error {
+	var conn *grpc.ClientConn
+	conn, err := grpc.Dial(s.TargetForLyricsService, grpc.WithInsecure())
+	if err != nil {
+		return fmt.Errorf("did not connect: %s", err)
+	}
+	s.LyricServiceConn = conn
 	return nil
 }
 
