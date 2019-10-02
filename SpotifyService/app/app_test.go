@@ -31,10 +31,10 @@ func TestPagingToTracks(t *testing.T) {
 	if r == nil {
 		t.Errorf("FAILED, result should not be nil")
 	}
-	if r[0].Artist != "name1" || r[0].Name != "name1" {
+	if r[0].Artist != "name1" || r[0].Name != "name1" || r[0].Rank != 0 {
 		t.Errorf("FAILED, track 1 did not convert correctly")
 	}
-	if r[1].Artist != "name2" || r[1].Name != "name2" {
+	if r[1].Artist != "name2" || r[1].Name != "name2" || r[1].Rank != 1 {
 		t.Errorf("FAILED, track 2 did not convert correctly")
 	}
 }

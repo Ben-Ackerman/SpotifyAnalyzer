@@ -9,10 +9,12 @@ import (
 
 // Track is a stuct used to store meta data about a given track
 type Track struct {
+	ID        string
 	Artist    string
 	Name      string
 	GeniusURI string
 	Lyrics    string
+	Rank      string
 }
 
 type lyricsCleaningOptions int

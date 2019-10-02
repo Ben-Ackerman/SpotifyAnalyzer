@@ -19,13 +19,18 @@ func main() {
 
 func run() error {
 	sessionStoreKey := os.Getenv("SessionsStoreKey")
+	db, err := app.InitPostgresDB()
+	if err != nil {
+		log.Fatalf("Error setting up database: %s\n", err)
+	}
 	s := &app.Server{
 		Router:                 http.DefaultServeMux,
 		TargetForLyricsService: os.Getenv("LyricsServiceName") + ":" + os.Getenv("LyricsServicePort"),
 		SessionStore:           sessions.NewCookieStore([]byte(sessionStoreKey)),
 		CookieName:             "cookie-store-spotifyAnalzer",
+		Database:               db,
 	}
-	err := s.Init()
+	err = s.Init()
 	if err != nil {
 		log.Fatalln(err)
 	}

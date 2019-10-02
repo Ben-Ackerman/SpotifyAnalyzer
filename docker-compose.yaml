@@ -53,12 +53,15 @@ services:
     image: "postgres:11"
     environment:
       - POSTGRES_PASSWORD
+      - POSTGRES_USER
+      - POSTGRES_DB
     container_name: "postgres_1"
     ports:
-      - "5555:5555"
+      - ${POSTGRES_PORT}:5432
     volumes:
-      - dbdata_1:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 volumes:
-  dbdata_1:
+  pgdata:
   

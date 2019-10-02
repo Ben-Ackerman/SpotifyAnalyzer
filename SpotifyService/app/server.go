@@ -17,10 +17,9 @@ var (
 
 // Track is a stuct used to store meta data about a given track
 type Track struct {
-	Artist    string
-	Name      string
-	GeniusURI string
-	Lyrics    string
+	Artist string
+	Name   string
+	Rank   int
 }
 
 // Server is a struct used to represent a server while storing its dependenies along with implementing http.Handler
@@ -108,6 +107,7 @@ func spotifyPagingToTracks(p *spotifyapi.PagingTrack) []Track {
 	for i := 0; i < length; i++ {
 		tracks[i].Name = p.Tracks[i].Name
 		tracks[i].Artist = p.Tracks[i].Artists[0].Name
+		tracks[i].Rank = i
 	}
 	return tracks
 }

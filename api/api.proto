@@ -8,6 +8,8 @@ message Tracks {
         string artist = 2;
         string geniusURI = 3;
         string lyrics = 4;
+        string id = 5;
+        int32 rank = 6;
     }
     repeated TrackInfo trackInfo = 1;
 }

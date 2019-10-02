@@ -17,12 +17,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Server represents an instance of a server
 type Server struct {
 	Router                 *http.ServeMux
 	TargetForLyricsService string
 	stopWordList           map[string]bool
 	SessionStore           *sessions.CookieStore
 	CookieName             string
+	Database               Database
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +94,43 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 		tracks, ok := session.Values["usersTopTracks"].([]Track)
 		if ok {
 			if tracks != nil {
-				tracks, err = s.callLyricsService(tracks)
+				lyriclessTracks := []Track{}
+
+				for i := 0; i < len(tracks); i++ {
+					id, err := s.Database.GetTrackID(tracks[i].Name, tracks[i].Artist)
+					if err != nil {
+						log.Printf("Error calling tracks database: %s", err)
+						return
+					}
+					if id == "" {
+						lyriclessTracks = append(lyriclessTracks, tracks[i])
+					}
+				}
+				lyriclessTracks, err = s.callLyricsService(lyriclessTracks)
+
+				for i := 0; i < len(tracks); i++ {
+					if tracks[i].ID == "" {
+						for j := 0; j < len(lyriclessTracks); j++ {
+							if lyriclessTracks[j].Rank == tracks[i].Rank {
+								lyriclessTracks[j].ID, err = s.Database.InsertTrack(&lyriclessTracks[j])
+								if err != nil {
+									log.Printf("Error calling tracks database: %s", err)
+									return
+								}
+								tracks[i] = lyriclessTracks[j]
+								break
+							}
+						}
+					} else {
+						result, err := s.Database.GetTrack(tracks[i].ID)
+						if err != nil {
+							log.Printf("Error calling tracks database: %s", err)
+							return
+						}
+						tracks[i].GeniusURI = result.GeniusURI
+						tracks[i].Lyrics = result.Lyrics
+					}
+				}
 				if err != nil {
 					log.Printf("Error calling lyric service %s", err.Error())
 					return

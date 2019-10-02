@@ -1,0 +1,14 @@
+# These are just usage tips for me
+
+To rebuild database remember to remove volume
+
+
+- Trouble shooting commmands 
+docker volume prune
+docker-compose up --force-recreate postgres
+docker exec -it postgres_1 psql -U $POSTGRES_USER -d $POSTGRES_DB
+    \l
+    \
+
+# Init script does not use environment variables
+# May still need to set search path for psql
