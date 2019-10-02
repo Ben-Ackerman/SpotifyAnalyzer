@@ -25,7 +25,7 @@ type Track struct {
 	Name      string
 	GeniusURI string
 	Lyrics    string
-	Rank      string
+	Rank      int
 }
 
 // Server represents an instance of a server
@@ -90,11 +90,12 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 						log.Printf("Error calling tracks database: %s", err)
 						return
 					}
+					log.Printf("searching for Song name: %s found id of /%s/", tracks[i].Name, tracks[i].ID)
 					if tracks[i].ID == "" {
 						waitgroup.Add(1)
 						go func(j int) {
 							// Call services to populate info and then place in database
-							lyrics, geniusURI, err := s.callLyricsService(r.Context(), tracks[i].Artist, tracks[i].Name)
+							lyrics, geniusURI, err := s.callLyricsService(r.Context(), tracks[j].Artist, tracks[j].Name)
 							errFound := false
 							if err != nil {
 								log.Printf("Error calling lyric service: %s", err)
@@ -102,16 +103,17 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 							}
 
 							if !errFound {
-								tracks[i].Lyrics = lyrics
-								tracks[i].GeniusURI = geniusURI
+								tracks[j].Lyrics = lyrics
+								tracks[j].GeniusURI = geniusURI
 
 								// Insert populated track into database for use later if another user
 								// need the same track info
-								tracks[i].ID, err = s.Database.InsertTrack(&tracks[i])
+								tracks[j].ID, err = s.Database.InsertTrack(&tracks[j])
 								if err != nil {
 									log.Printf("Error calling tracks database: %s", err)
 									errFound = true
 								}
+								log.Printf("Inserting ID of %s\n", tracks[j].ID)
 							}
 
 							waitgroup.Done()

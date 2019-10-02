@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	// Used to give the driver postgres to database/sql
+	_ "github.com/lib/pq"
 )
 
 // Database represents a database connection used to store music tracks
@@ -30,7 +33,7 @@ func (p *PostgresDB) Close() {
 // InitPostgresDB creates a PostgresDB struct and initializes the
 // nessisary fields.
 func InitPostgresDB() (*PostgresDB, error) {
-	host := "localhost"
+	host := "postgres"
 	port := os.Getenv("POSTGRES_PORT")
 	user := os.Getenv("POSTGRES_USER")
 	dbname := os.Getenv("POSTGRES_DB")
