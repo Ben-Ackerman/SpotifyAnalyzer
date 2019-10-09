@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/Ben-Ackerman/SpotifyAnalyzer/api"
 	"github.com/gorilla/sessions"
@@ -20,13 +19,16 @@ import (
 
 // Track is a stuct used to store meta data about a given track
 type Track struct {
-	ID        string
+	ID        string `json:"spotifyID"`
 	Artist    string
 	Name      string
 	GeniusURI string
 	Lyrics    string
-	Rank      int
+	Rank      int `json:"rank"`
 }
+
+// Tracks represents an slice of Tracks
+type Tracks []Track
 
 // Server represents an instance of a server
 type Server struct {
@@ -60,14 +62,14 @@ func (s *Server) handleRoot() http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
+func (s *Server) handleGetLyricsWordCount(sessionStoreName string, sessionStoreValue string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, err := s.SessionStore.Get(r, s.CookieName)
+		loginSession, err := s.SessionStore.Get(r, "analyzerlogin")
 		if err != nil {
-			log.Printf("Error in handleSpotifyLoginCallback: %s\n", err)
+			log.Printf("Error in getting cookie analyzerlogin in LyricsWordCount: %s\n", err)
 		}
 
-		if spotifyLogin, ok := session.Values["loggedInWithSpotify"].(bool); !ok || !spotifyLogin {
+		if spotifyLogin, ok := loginSession.Values["loggedInWithSpotify"].(bool); !ok || !spotifyLogin {
 			http.Error(w, "User must first log in with spotify", http.StatusBadRequest)
 		}
 
@@ -80,71 +82,81 @@ func (s *Server) handleGetLyricsWordCount() http.HandlerFunc {
 		}
 		rv := &results{}
 
-		tracks, ok := session.Values["usersTopTracks"].([]Track)
+		session, err := s.SessionStore.Get(r, sessionStoreName)
+		if err != nil {
+			log.Printf("Error getting cookie %s: %s\n", sessionStoreName, err)
+		}
+
+		jsonData, ok := session.Values[sessionStoreValue].([]byte)
+		var tracks Tracks
 		if ok {
-			if tracks != nil {
-				var waitgroup sync.WaitGroup
-				for i := 0; i < len(tracks); i++ {
-					tracks[i].ID, err = s.Database.GetTrackID(tracks[i].Name, tracks[i].Artist)
-					if err != nil {
-						log.Printf("Error calling tracks database: %s", err)
-						return
-					}
-					log.Printf("searching for Song name: %s found id of /%s/", tracks[i].Name, tracks[i].ID)
-					if tracks[i].ID == "" {
-						waitgroup.Add(1)
-						go func(j int) {
-							// Call services to populate info and then place in database
-							lyrics, geniusURI, err := s.callLyricsService(r.Context(), tracks[j].Artist, tracks[j].Name)
-							errFound := false
-							if err != nil {
-								log.Printf("Error calling lyric service: %s", err)
-								errFound = true
-							}
-
-							if !errFound {
-								tracks[j].Lyrics = lyrics
-								tracks[j].GeniusURI = geniusURI
-
-								// Insert populated track into database for use later if another user
-								// need the same track info
-								tracks[j].ID, err = s.Database.InsertTrack(&tracks[j])
-								if err != nil {
-									log.Printf("Error calling tracks database: %s", err)
-									errFound = true
-								}
-								log.Printf("Inserting ID of %s\n", tracks[j].ID)
-							}
-
-							waitgroup.Done()
-						}(i)
-					} else {
-						result, err := s.Database.GetTrack(tracks[i].ID)
-						if err != nil {
-							log.Printf("Error calling tracks database: %s", err)
-							return
-						}
-						tracks[i].GeniusURI = result.GeniusURI
-						tracks[i].Lyrics = result.Lyrics
-					}
-				}
-				waitgroup.Wait()
+			err := json.Unmarshal(jsonData, &tracks)
+			if err != nil {
+				log.Printf("Error decoding jsonData: %s", err)
 			}
+			// if tracks != nil {
+			// 	var waitgroup sync.WaitGroup
+			// 	for i := 0; i < len(tracks); i++ {
+			// 		tracks[i].ID, err = s.Database.GetTrackID(tracks[i].Name, tracks[i].Artist)
+			// 		if err != nil {
+			// 			log.Printf("Error calling tracks database: %s", err)
+			// 			return
+			// 		}
+			// 		log.Printf("searching for Song name: %s found id of /%s/", tracks[i].Name, tracks[i].ID)
+			// 		if tracks[i].ID == "" {
+			// 			waitgroup.Add(1)
+			// 			go func(j int) {
+			// 				// Call services to populate info and then place in database
+			// 				lyrics, geniusURI, err := s.callLyricsService(r.Context(), tracks[j].Artist, tracks[j].Name)
+			// 				errFound := false
+			// 				if err != nil {
+			// 					log.Printf("Error calling lyric service: %s", err)
+			// 					errFound = true
+			// 				}
 
-			var lyricsBuilder strings.Builder
-			for _, val := range tracks {
-				lyr := cleanLyrics(val.Lyrics, removeSectionHeaders, trimWhiteSpace)
-				lyricsBuilder.WriteString(lyr)
-			}
-			wordCounts := getWordCounts(lyricsBuilder.String())
-			wordCounts = s.removeStopWords(wordCounts)
-			top20Words := getTopNWords(wordCounts, 20)
+			// 				if !errFound {
+			// 					tracks[j].Lyrics = lyrics
+			// 					tracks[j].GeniusURI = geniusURI
 
-			rv.Result = make([]wordToCount, len(top20Words))
-			for i, key := range top20Words {
-				rv.Result[i].Word = key
-				rv.Result[i].Count = wordCounts[key]
-			}
+			// 					// Insert populated track into database for use later if another user
+			// 					// need the same track info
+			// 					tracks[j].ID, err = s.Database.InsertTrack(&tracks[j])
+			// 					if err != nil {
+			// 						log.Printf("Error calling tracks database: %s", err)
+			// 						errFound = true
+			// 					}
+			// 					log.Printf("Inserting ID of %s\n", tracks[j].ID)
+			// 				}
+
+			// 				waitgroup.Done()
+			// 			}(i)
+			// 		} else {
+			// 			result, err := s.Database.GetTrack(tracks[i].ID)
+			// 			if err != nil {
+			// 				log.Printf("Error calling tracks database: %s", err)
+			// 				return
+			// 			}
+			// 			tracks[i].GeniusURI = result.GeniusURI
+			// 			tracks[i].Lyrics = result.Lyrics
+			// 		}
+			// 	}
+			// 	waitgroup.Wait()
+			// }
+
+			// var lyricsBuilder strings.Builder
+			// for _, val := range tracks {
+			// 	lyr := cleanLyrics(val.Lyrics, removeSectionHeaders, trimWhiteSpace)
+			// 	lyricsBuilder.WriteString(lyr)
+			// }
+			// wordCounts := getWordCounts(lyricsBuilder.String())
+			// wordCounts = s.removeStopWords(wordCounts)
+			// top20Words := getTopNWords(wordCounts, 20)
+
+			// rv.Result = make([]wordToCount, len(top20Words))
+			// for i, key := range top20Words {
+			// 	rv.Result[i].Word = key
+			// 	rv.Result[i].Count = wordCounts[key]
+			// }
 		}
 		json.NewEncoder(w).Encode(rv)
 	}
@@ -190,6 +202,7 @@ func (s *Server) Init() error {
 	}
 
 	s.Routes()
+	s.SessionStore.MaxAge(60 * 60 * 2) //2 hrs
 	gob.Register([]Track{})
 	return nil
 }

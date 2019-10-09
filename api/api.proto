@@ -12,6 +12,65 @@ message LyricsInfo {
     string geniusURI = 2;
 }
 
+message UserInfoInput {
+    string session_ID = 1;
+    enum SpotifyTimeFrames {
+        medium_term = 0;
+        short_term = 1;
+        long_term = 2;
+    }
+    SpotifyTimeFrames time_frame = 2;
+}
+
+message UserTopTracks {
+    repeated SpotifyTrackID spotify_track_IDs = 1;
+}
+
+message SpotifyTrackID {
+    string spotify_ID = 1;
+}
+
+message SpotifyIDList {
+    repeated SpotifyTrackID IDList = 1;
+}
+
+message SpotifyTrackInfoList {
+    repeated SpotifyTrackInfo tracks = 1;
+}
+
+message SpotifyTrackInfo {
+    string spotify_ID = 1;
+    string name = 2;
+    string artist = 3;
+    int32 duration_ms = 4;
+    bool explicit = 5;
+    int32 popularity = 6;
+    int32 track_number = 7;
+    SpotifyAudioFeatures audio_features = 8;
+}
+
+message SpotifyAudioFeatures {
+    int32 key = 1;
+    int32 mode = 2;
+    int32 time_signature = 3;
+    float acousticness = 4;
+    float danceability = 5;
+    float energy = 6;
+    float instrumentalness = 7;
+    float liveness = 8;
+    float loudness = 9;
+    float speechiness = 10;
+    float valence = 11;
+    float tempo = 12;
+}
+
 service Lyrics {
     rpc GetLyrics(TracksInfo) returns (LyricsInfo) {}
+}
+
+service UserInfo {
+    rpc getUserInfo(UserInfoInput) returns (UserTopTracks) {} 
+}
+service Spotify {
+    rpc GetTracksInfo(SpotifyIDList) returns (SpotifyTrackInfoList) {}
 }

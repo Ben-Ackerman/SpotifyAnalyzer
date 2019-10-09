@@ -6,7 +6,6 @@ const BarChartWithLabel = (props) => {
     var errorFound = false
     // error check
     try {
-            // do some crazy stuff
         if (!props.xValueAccessor) {
             throw new Error("Must provide a yValueAccessor function to BarChartWithLabel")
         }

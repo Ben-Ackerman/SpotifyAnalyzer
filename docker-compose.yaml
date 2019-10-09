@@ -41,6 +41,8 @@ services:
       - SpotifyServicePort
       - SpotifyRedirectURL
       - SessionsStoreKey
+      - REDIS_PORT
+      - REDIS_PASSWORD
     build:
       context: .
       dockerfile: "./SpotifyService/Dockerfile"
@@ -48,6 +50,14 @@ services:
       - ${SpotifyServicePort}
     volumes:
       - $GOPATH/pkg/mod:/go/pkg/mod
+    restart: always
+    depends_on:
+      - redis
+  redis:
+    image: "redis:alpine"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    expose:
+      - ${REDIS_PORT}
     restart: always
   nginx:
     build: 
@@ -71,7 +81,6 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
-
 volumes:
   pgdata:
   

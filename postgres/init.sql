@@ -3,7 +3,7 @@ CREATE EXTENSION pgcrypto;
 GRANT ALL PRIVILEGES ON DATABASE spotify_analyzer TO db1;
 CREATE SCHEMA IF NOT EXISTS info;
 CREATE TABLE info.tracks(
-   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   spotify_id TEXT PRIMARY KEY,
    track TEXT,
    artist TEXT,
    lyrics TEXT,

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gorilla/sessions"
 
@@ -12,6 +13,9 @@ import (
 )
 
 func main() {
+	// This delay is here to give the database time to start up
+	time.Sleep(10 * time.Second)
+
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
